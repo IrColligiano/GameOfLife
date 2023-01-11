@@ -78,10 +78,10 @@ int scelta_rig(char * s);
 void scrittura_file(FILE ** fp , char *pathname_out, int ** mat);
 
 //prende una stringa e controlla se e' un numero intero
-int is_number_int(char * s);
+int is_number_int(const char* s, int* tmp);
 
-// prende una stringa e controlla se e' un float
-int is_number_float(char * s);
+// prende una stringa e controlla se e' un double
+int is_number_double(const char* s, double* tmp);
 
 // prende una stringa e controlla l input per fare la scelta [1] o [2]
 int scelta_binaria(char * s);
@@ -309,32 +309,14 @@ int main(int argc, char ** argv){
 			}
 		}
 		// riempimento matrice con 0
-		for(i=0; i < rig; i++){
-			for(j=0; j < col; j++ ){
-				matrice[i][j]=0;
-			}
-		}
+		
 	
-		//////////////// metodo di genrazione e swap di indici//////////////////////
+//////////////// metodo di genrazione e swap di indici//////////////////////
 		
 		
 //////////////// metodo di generazione ripetendo il ciclo/////////////////
-		printf("\n%d\n\n",rig);
-		int num=0;
-		int dim= rig*col;
-		int rapp=perc_int;
-		while(perc_int>0){ // rinizio a scorrere la matrice finche' non ho raggiunto 0 numeri da inserire
-			srand(time(NULL)); // cambio seme ogni volta che rinizio la matrice
-			for(i=0;i<rig && perc_int>0;i++){
-				for(j=0;j<col && perc_int>0;j++){
-					num= rand() % dim; // 
-					if(matrice[i][j]==0 && num < rapp ){ // controllo che la cella sia 0 ed il numero casuale sia minore di rapp
-						matrice[i][j]=1;  // inserisco 1 nella cella
-						perc_int--; // diminuisco il numero di celle mancanti da inserire
-					}
-				}
-			}
-		}
+		genera_matrice(perc_int,&matrice);
+
 		///////////versione con generazione direttamente su matrice///////////////////
 		
 		// inserisco 1 in posizioni pseudorandomiche della matrice
@@ -439,45 +421,59 @@ int main(int argc, char ** argv){
 }
 
 ////////////////////////////////////// funzioni //////////////////////////////////////////////////////////
-/*
+
 void genera_matrice(int p, int ***mat){
-		int i=0;
-		int arrig[rig];
-		int arcol[col];
-		int swap=0;
-		int ranrig=0;
-		int rancol=0;
-		for(i=0;i<rig ; i++){
-			arrig[i]=i;
-			printf("%d |",arrig[i]);
-		}
-		printf("\n");
-		for(i=0;i<rig ; i++){
-			arcol[i]=i;
-			printf("%d |",arcol[i]);
-		}
-		printf("\n");
-		printf("rig %d col %d i %d\n", rig, col, i);
-		while(p > 0){
-			srand(time(NULL));
-			swap=rig-i;
-			ranrig= i+ (rand() %(swap));
-			swap=col-i;
-			rancol= i+ (rand() %(swap));
-			printf("%d,%d |\n",ranrig,rancol);
-			*mat[ranrig] [rancol] = 0;
-			print_prima_matrice(matrice);
-			swap=arrig[ranrig];
-			arrig[ranrig]=arrig[i];
-			arrig[i]=swap;
-			swap=arcol[rancol];
-			arcol[rancol]=arcol[i];
-			arcol[i]=swap;
-			i++;
-			p--;
+	int i,j;
+	int num=0;
+	int dim= rig*col;
+	int rapp=p;
+	for(i=0; i < rig; i++){
+		for(j=0; j < col; j++ ){
+			*mat[i][j]=0;
 		}
 	}
-*/
+	int arrig[rig];
+	int arcol[col];
+	int swap=0;
+	int ranrig=0;
+	int rancol=0;
+	for(i=0;i<rig ; i++){
+		arrig[i]=i;
+	}
+	for(i=0;i<rig ; i++){
+		arcol[i]=i;
+	}
+	while(p > 0){
+		srand(time(NULL));
+		swap=rig-i;
+		ranrig= i+ (rand() %(swap));
+		swap=col-i;
+		rancol= i+ (rand() %(swap));
+		*mat[ranrig][rancol] = 1;
+		swap=arrig[ranrig];
+		arrig[ranrig]=arrig[i];
+		arrig[i]=swap;
+		swap=arcol[rancol];
+		arcol[rancol]=arcol[i];
+		arcol[i]=swap;
+		i++;
+		p--;
+	}
+	/*
+	while(p>0){ // rinizio a scorrere la matrice finche' non ho raggiunto 0 numeri da inserire
+		srand(time(NULL)); // cambio seme ogni volta che rinizio la matrice
+		for(i=0;i<rig && p>0;i++){
+			for(j=0;j<col && p>0;j++){
+				num= rand() % dim;  
+				if(matrice[i][j]==0 && num < rapp ){ // controllo che la cella sia 0 ed il numero casuale sia minore di rapp
+					matrice[i][j]=1;  // inserisco 1 nella cella
+					p--; // diminuisco il numero di celle mancanti da inserire
+				}
+			}
+		}
+	}*/
+}
+
 void free_matrice(){
 	for(int i=0; i<rig ;i++){
 		free(matrice[i]);
@@ -487,45 +483,25 @@ void free_matrice(){
 	free(matrice_supp);
 }
 
-int is_number_int(char * s){
-	int i;
-	int ok=1;
-	size_t len=strnlen(s,INPUTLEN);
-	if(len==INPUTLEN && s[INPUTLEN-1]!='\0'){
-		printf("Input troppo lungo, riprovare");
+int is_number_int(const char* s, int* tmp){
+	if(s==NULL)
 		return 0;
-	}
-	for(i=0; s[i]!='\0' && i< len && ok ; ++i){
-		if( !(s[i] >= '0' && s[i] <='9' ) )
-			ok=0;
-	}
-	if(ok)
+	*tmp=atoi(s);
+	if(!(*tmp))
+		return 0;
+	if(*tmp != 0)	
 		return 1;
-	else 
-		return 0;
 }
 
-int is_number_float(char * s){
-	int i;
-	int ok =0;
-	int ok2= 0;
-	size_t len=strnlen(s,INPUTLEN);
-	if(len==INPUTLEN && s[INPUTLEN-1]!='\0'){
-		printf("Input troppo lungo, riprovare");
+int is_number_double(const char* s, double* tmp){
+	if(s==NULL)
 		return 0;
-	}
-	for(i=0; s[i]!='\0' && i< len && ok && ok2<2 ; ++i){
-		if(!(s[i] >= '0' && s[i] <='9'))
-			ok=0;
-		if(s[i] == '.')
-			ok2++;
-	}
-	if(ok && ok2 < 2)
+	*tmp=atof(s);
+	if(!(*tmp))
+		return 0;
+	if(*tmp != 0)	
 		return 1;
-	else 
-		return 0;
 }
-
 
 int scelta_str(char * path){
 	size_t pathname_len=strnlen(path,PATHLEN);
@@ -580,10 +556,10 @@ void scrittura_file(FILE ** fp , char *pathname_out ,int ** mat){
 }
 
 int scelta_perc(char * s, int * perc_int){
-	double check=atof(s);
-	if(( !is_number_float(s)) &&( check< 0 || check >=1)){
-		printf("Inserimento non corretto numero non compreso in [0,1), riprovare\n");
-		return 0;
+	double check;
+	if(( is_number_double(s,&check) !=1) || ( check<= 0 || check >=1)){
+			printf("Inserimento non corretto numero non compreso in [0,1) o potresti aver inserito un carattere, riprovare\n");
+			return 0;
 	}
 	else{
 		perc=check;
@@ -595,13 +571,13 @@ int scelta_perc(char * s, int * perc_int){
 }
 
 int scelta_rig(char * s){
-	int check=atoi(s);
-	if(( !is_number_int(s)) && check<= 0){
-		printf("La Granzezza inserita non e' strettamente maggiore di 0, riprovare\n");
+	int check;
+	if(( is_number_int(s,&check))!=1 && check<= 0){
+		printf("La Granzezza inserita non e' strettamente maggiore di 0 o potresti aver inserito un carattere, riprovare\n");
 		return 0;
 	}
 	else{
-		rig=check;
+		rig=(int)check;
 		col=rig;
 		printf("Verra' generata una matrice %d*%d\n",rig,col);
 		return 1;
@@ -609,24 +585,24 @@ int scelta_rig(char * s){
 }
 
 int scelta_state(char * s){
-	int check=atoi(s);
-	if(( !is_number_int(s)) && check<= 0){
+	int check;
+	if(( is_number_int(s,&check))!=1 && (check<= 0)){
 		printf("Il numero di generazioni inserito non e' strettamente maggiore di 0 oppure non e' un numero intero,riprovare\n");
 		return 0;
 	}
 	else{
-		state=check;
+		state=(int)check;
 		printf("Verranno eseguite %d generazioni\n",state);
 		return 1;
 	}
 }
 
 int scelta_binaria(char * s){
-	if(! is_number_int(s) ){
+	int check;
+	if( is_number_int(s,&check)!=1 ){
 		printf("Numero non riconosciuto tra le opzioni, riprovare\n");
 		return 0;
 	}	
-	int check=atoi(s);
 	if(check==1){
 		printf("Hai scelto l' opzione [1]: ");
 		return 1;
