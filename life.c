@@ -96,6 +96,10 @@ void genera_matrice(int p, int ***mat);
 
 ///////////////////////////////////////////main()//////////////////////////////////////////////////////
 int main(int argc, char ** argv){
+	if(argc>1){
+		fprintf(stderr ,"Troppi argomenti in ingresso\n");
+		return (int)EXIT_FAILURE;
+	}
 	//variabili per le scelte binarie
 	int switch_=0;
 	int switch_2=0;
@@ -120,7 +124,6 @@ int main(int argc, char ** argv){
 	char pathname_in[PATHLEN];
 	// stringa contenente file in uscita
 	char pathname_out[PATHLEN];
-	
 	//puntatore a matrice che mi serve per fare la free della matrice di supporto
 	int ** dealloca_matrice=NULL;
 	// stringa per input
@@ -196,29 +199,29 @@ int main(int argc, char ** argv){
 	if(switch_ == 1){
 		if ((fp=fopen(pathname_in,"r"))==NULL){
 			fprintf(stderr, "Errore fopen %s\n",pathname_in);
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
-		double a;
+		int a;
 
-		if((err=fscanf(fp,"%lf", &a))==1){ // voglio leggere un carattere che sia intero
-			if( is_int(a) && a>0){
+		if((err=fscanf(fp,"%s", s))==1){ // voglio leggere un carattere che sia intero
+			if( is_number_int(s,&a) && a>0){
 				rig=a;
 				col=rig;
 			}
 			else{
 				printf("Il contenuto del file non corrisponde con le specifiche\n");
 				printf("L'esecuzione termina\n");
-				return 0;
+				return EXIT_FAILURE;
 			}
 		}
 		if(err==EOF){
 			printf("Il file passato risulta vuoto, l' esecuzione termina\n");
-			return 0;
+			return EXIT_FAILURE;
 		}
 		if(err==0){
 			printf("Il contenuto del file non corrisponde con le specifiche, leggere il Manuale\n");
 			printf("L'esecuzione termina\n");
-			return 0;
+			return EXIT_FAILURE;
 		}
 
 		// alloco memoria dinamica per matrice e matrice di supporto;
@@ -226,14 +229,14 @@ int main(int argc, char ** argv){
 		matrice_supp = (int **) malloc (rig * sizeof(int*));
 		if(matrice==NULL || matrice_supp==NULL){
 			fprintf(stderr, "Errore malloc\n");
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 		for(i = 0; i < rig; i++){
 			matrice[i] = (int *)malloc(col * sizeof(int));
 			matrice_supp[i] = (int *)malloc(col * sizeof(int));
 			if(matrice[i]==NULL || matrice_supp[i]==NULL){
 				fprintf(stderr, "Errore malloc\n");
-				exit(EXIT_FAILURE);
+				return EXIT_FAILURE;
 			}
 		}
 
@@ -256,7 +259,7 @@ int main(int argc, char ** argv){
 						printf("Il contenuto del file non corrisponde con le specifiche, leggere il Manuale\n");
 						printf("L'esecuzione termina\n");
 						free_matrice();
-						exit(EXIT_FAILURE);
+						return EXIT_FAILURE;
 					}
 				}
 				if(err==EOF && !(j==col) && !(i==rig)){ // il file e' terminato prima di leggere l'intera matrice
@@ -266,7 +269,7 @@ int main(int argc, char ** argv){
 					printf("Il contenuto del file non corrisponde con le specifiche, leggere il Manuale\n");
 					printf("L'esecuzione termina\n");
 					free_matrice();
-					exit(EXIT_FAILURE);
+					return EXIT_FAILURE;
 				}
 			}
 		}
@@ -292,20 +295,20 @@ int main(int argc, char ** argv){
 		// alloco memoria dinamica per matrice e matrice di supporto;
 		if((matrice = (int **)malloc(rig * sizeof(int*)))==NULL){
 			fprintf(stderr, "Errore malloc\n");
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 		if((matrice_supp = (int **) malloc (rig * sizeof(int*)))==NULL){
 			fprintf(stderr, "Errore malloc\n");
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 		for(i = 0; i < rig; i++){
 			if((matrice[i] = (int *)malloc(rig * sizeof(int)))==NULL){
-			fprintf(stderr, "Errore malloc\n");
-			exit(EXIT_FAILURE);
+				fprintf(stderr, "Errore malloc\n");
+				return EXIT_FAILURE;
 			}
 			if((matrice_supp[i] = (int *)malloc(rig * sizeof(int)))==NULL){
 				fprintf(stderr, "Errore malloc\n");
-				exit(EXIT_FAILURE);
+				return EXIT_FAILURE;
 			}
 		}
 		// riempimento matrice con 0
@@ -529,7 +532,7 @@ void scrittura_file(FILE ** fp , char *pathname_out ,int ** mat){
 	if ((*fp=fopen(pathname_out,"w"))==NULL){
 		fprintf(stderr, "Errore fopen %s\n",pathname_out);
 		free_matrice();
-		exit(EXIT_FAILURE);
+		exit( EXIT_FAILURE);
 	}
 	int i,j;
 	if(fprintf(*fp,"%d%s",rig,"\n")==EOF){
@@ -542,13 +545,13 @@ void scrittura_file(FILE ** fp , char *pathname_out ,int ** mat){
 			if(fprintf(*fp,"%d%c",mat[i][j],' ')==EOF){
 				fprintf(stderr, "Errore scrittura file %s\n",pathname_out);
 				free_matrice();
-				exit(EXIT_FAILURE);
+				exit( EXIT_FAILURE);
 			}
 		}
 		if(fprintf(*fp,"%s","\n")==EOF)	{
 			fprintf(stderr, "Errore scrittura file %s\n",pathname_out);
 			free_matrice();
-			exit(EXIT_FAILURE);
+			exit( EXIT_FAILURE);
 		}
 	}
 	fclose(*fp);
@@ -600,7 +603,7 @@ int scelta_state(char * s){
 int scelta_binaria(char * s){
 	int check;
 	if( is_number_int(s,&check)!=1 ){
-		printf("Numero non riconosciuto tra le opzioni, riprovare\n");
+		printf("Numero non riconosciuto tra le opzioni oppure potresti aver inserito un carattere, riprovare\n");
 		return 0;
 	}	
 	if(check==1){
@@ -611,7 +614,7 @@ int scelta_binaria(char * s){
 		printf("Hai scelto l' opzione [2]: ");
 		return 2;
 	}
-	printf("Numero non riconosciuto tra le opzioni, riprovare\n");
+	printf("Numero non riconosciuto tra le opzioni oppure potresti aver inserito un carattere, riprovare\n");
 	return 0;
 }
 
