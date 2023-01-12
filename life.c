@@ -5,7 +5,6 @@
 // numero di secondi da aspettare tra una visualizzazione e l' altra
 #define SECOND 1
 
-#include <math.h>
 #include<sys/stat.h>
 #include<stdio.h>
 #include<stdlib.h>
@@ -13,7 +12,6 @@
 #include<time.h>
 #include<sys/types.h>
 #include<unistd.h>
-#include<errno.h>
 
 
 /////////////////////////////////////////// variabili globali /////////////////////////////////////
@@ -29,6 +27,8 @@ double perc=0;
 int ** matrice=NULL;
 //matrice di supporto con allocazione dinamica
 int ** matrice_supp=NULL;
+//puntatore a matrice che mi serve per fare la free della matrice di supporto
+int ** matrice_aux=NULL;
 
 ///////////////////////////////////////// prototipi funzioni/////////////////////////////////////
 
@@ -92,7 +92,13 @@ int scelta_perc(char * s, int * perc_int);
 // rilascia la memoria dinamica allocata dalle matrici
 void free_matrice();
 
-void genera_matrice(int p, int ***mat);
+void genera_matrice(int p);
+
+void alloca_matrice();
+
+void * malloc_(size_t size);
+
+void evoluzione();
 
 ///////////////////////////////////////////main()//////////////////////////////////////////////////////
 int main(int argc, char ** argv){
@@ -124,8 +130,6 @@ int main(int argc, char ** argv){
 	char pathname_in[PATHLEN];
 	// stringa contenente file in uscita
 	char pathname_out[PATHLEN];
-	//puntatore a matrice che mi serve per fare la free della matrice di supporto
-	int ** dealloca_matrice=NULL;
 	// stringa per input
 	char s[INPUTLEN];
 	
@@ -194,7 +198,6 @@ int main(int argc, char ** argv){
 			}
 		}
 	}
-
 	// caso in cui la generazione viene presa da file
 	if(switch_ == 1){
 		if ((fp=fopen(pathname_in,"r"))==NULL){
@@ -202,8 +205,7 @@ int main(int argc, char ** argv){
 			return EXIT_FAILURE;
 		}
 		int a;
-
-		if((err=fscanf(fp,"%s", s))==1){ // voglio leggere un carattere che sia intero
+		if((err=fscanf(fp,"%s", s))==1){ // voglio leggere un carattere che sia intero che sara' il numero di riga
 			if( is_number_int(s,&a) && a>0){
 				rig=a;
 				col=rig;
@@ -223,23 +225,8 @@ int main(int argc, char ** argv){
 			printf("L'esecuzione termina\n");
 			return EXIT_FAILURE;
 		}
-
-		// alloco memoria dinamica per matrice e matrice di supporto;
-		matrice = (int **)malloc(rig * sizeof(int*));
-		matrice_supp = (int **) malloc (rig * sizeof(int*));
-		if(matrice==NULL || matrice_supp==NULL){
-			fprintf(stderr, "Errore malloc\n");
-			return EXIT_FAILURE;
-		}
-		for(i = 0; i < rig; i++){
-			matrice[i] = (int *)malloc(col * sizeof(int));
-			matrice_supp[i] = (int *)malloc(col * sizeof(int));
-			if(matrice[i]==NULL || matrice_supp[i]==NULL){
-				fprintf(stderr, "Errore malloc\n");
-				return EXIT_FAILURE;
-			}
-		}
-
+		// alloco le matrici
+		alloca_matrice();
 		//riempio la matrice con -1
 		for(i=0; i < rig; i++){
 				for(j=0; j < col; j++ ){
@@ -277,8 +264,8 @@ int main(int argc, char ** argv){
 		if(ok==0){
 			printf("La matrice contenuta nel file non e' completa\n");
 			printf("La matrice verra' completata randomicamente\n");
-			srand(time(NULL));
 			for(i=0;i<rig;i++){
+				srand(time(NULL));
 				for(j=0;j<col;j++){
 					if(matrice[i][j]==-1){
 						matrice[i][j]=( rand() %2);
@@ -286,86 +273,21 @@ int main(int argc, char ** argv){
 				}
 			}
 		}
-		print_prima_matrice(matrice);
-
 	}
 
 	// caso in cui la matrice viene generata
 	if(switch_ == 2){
 		// alloco memoria dinamica per matrice e matrice di supporto;
-		if((matrice = (int **)malloc(rig * sizeof(int*)))==NULL){
-			fprintf(stderr, "Errore malloc\n");
-			return EXIT_FAILURE;
-		}
-		if((matrice_supp = (int **) malloc (rig * sizeof(int*)))==NULL){
-			fprintf(stderr, "Errore malloc\n");
-			return EXIT_FAILURE;
-		}
-		for(i = 0; i < rig; i++){
-			if((matrice[i] = (int *)malloc(rig * sizeof(int)))==NULL){
-				fprintf(stderr, "Errore malloc\n");
-				return EXIT_FAILURE;
-			}
-			if((matrice_supp[i] = (int *)malloc(rig * sizeof(int)))==NULL){
-				fprintf(stderr, "Errore malloc\n");
-				return EXIT_FAILURE;
-			}
-		}
-		// riempimento matrice con 0
-		
-	
-//////////////// metodo di genrazione e swap di indici//////////////////////
-		
-		
-//////////////// metodo di generazione ripetendo il ciclo/////////////////
-		genera_matrice(perc_int,&matrice);
-
-		///////////versione con generazione direttamente su matrice///////////////////
-		
-		// inserisco 1 in posizioni pseudorandomiche della matrice
-		/*
-		int ind_rig=0;
-		int ind_col=0;
-		while(perc_int>0){
-			srand(time(NULL));
-			ind_rig= rand() % rig;
-			ind_col= rand() % col;
-			if(matrice [ind_rig][ind_col] == 0){
-				matrice [ind_rig][ind_col] = 1;
-				perc_int--;
-			}
-		}
-		*/
-		print_prima_matrice(matrice);
+		alloca_matrice();
+		// genero la matrice 
+		genera_matrice(perc_int);
 	}
-  /*Qualsiasi cella viva con meno di due celle vive adiacenti muore, come per effetto d’isolamento;
- 	Qualsiasi cella viva con due o tre celle vive adiacenti sopravvive alla generazione successiva;
- 	Qualsiasi cella viva con pi `u di tre celle vive adiacenti muore, come per effetto di sovrappopolazione;
- 	Qualsiasi cella morta con esattamente tre celle vive adiacenti diventa una cella viva, come per effetto
-	di riproduzione.”*/
+	// stampo la matrice originaria
+	print_prima_matrice(matrice);
 	// inizio a creare le generazioni future
-	for(int w=0 ; w<state ; w++){
-		for(i=0; i<rig; i++){
-			for(j=0;j<col;j++){
-				celle_vive = celle_vive_vicine(matrice,i,j);
-				if(matrice[i][j]==1 && (celle_vive==2 || celle_vive==3)){ // controllo che una cella viva abbia 2 o 3celle vive vicine
-					matrice_supp[i][j]=1; // quindi la cella rimane viva
-				}
-				else if(matrice[i][j]==0 && celle_vive==3){ // controllo che una cella morta abbia 3 celle vicine vive 
-					matrice_supp[i][j]=1; // quindi la cella rinasce
-					}
-				else{ // questo else sono il resto dei casi ovvero, in cui la cella muore con piu' di 3 vicine vive , la cella muore con meno di 2 celle vive vicine
-					matrice_supp[i][j]=0; 
-				}
-			}
-		}
-		dealloca_matrice=matrice;
-		matrice=matrice_supp; // faccio puntare matrice alla matrice di supporta
-		matrice_supp=dealloca_matrice;
-		sleep(SECOND);
-		print_stage(w+1,matrice);
-	}
-	printf("\nGAME OVER\n\n");
+	evoluzione();
+
+
 	opt=0;
 	opt1=0;
 	opt2=0;;
@@ -425,34 +347,85 @@ int main(int argc, char ** argv){
 
 ////////////////////////////////////// funzioni //////////////////////////////////////////////////////////
 
-void genera_matrice(int p, int ***mat){
+void evoluzione(){
+	/*Qualsiasi cella viva con meno di due celle vive adiacenti muore, come per effetto d’isolamento;
+ 	Qualsiasi cella viva con due o tre celle vive adiacenti sopravvive alla generazione successiva;
+ 	Qualsiasi cella viva con pi `u di tre celle vive adiacenti muore, come per effetto di sovrappopolazione;
+ 	Qualsiasi cella morta con esattamente tre celle vive adiacenti diventa una cella viva, come per effetto
+	di riproduzione.”*/
+	int i,j,celle_vive;
+	for(int w=0 ; w<state ; w++){
+		for(i=0; i<rig; i++){
+			for(j=0;j<col;j++){
+				celle_vive = celle_vive_vicine(matrice,i,j);
+				if(matrice[i][j]==1 && (celle_vive==2 || celle_vive==3)){ // controllo che una cella viva abbia 2 o 3celle vive vicine
+					matrice_supp[i][j]=1; // quindi la cella rimane viva
+				}
+				else if(matrice[i][j]==0 && celle_vive==3){ // controllo che una cella morta abbia 3 celle vicine vive 
+					matrice_supp[i][j]=1; // quindi la cella rinasce
+					}
+				else{ // questo else sono il resto dei casi ovvero, in cui la cella muore con piu' di 3 vicine vive , la cella muore con meno di 2 celle vive vicine
+					matrice_supp[i][j]=0; 
+				}
+			}
+		}
+		matrice_aux=matrice;
+		matrice=matrice_supp; // in queste 3 righe scambio i puntatori delle matrici
+		matrice_supp=matrice_aux;
+		sleep(SECOND);
+		print_stage(w+1,matrice);
+	}
+	printf("\nGAME OVER\n\n");
+	return;
+}
+
+void* malloc_(size_t size) {
+    void* buffer=malloc(size);
+    if(buffer==NULL){
+        fprintf(stderr,"Errore allocazione malloc");
+        exit(EXIT_FAILURE);
+    }
+    return buffer;
+}
+
+void alloca_matrice(){
+	matrice = (int **)malloc_(rig * sizeof(int*));
+	matrice_supp = (int **) malloc_ (rig * sizeof(int*));
+	for(int i = 0; i < rig; i++){
+		matrice[i] = (int *)malloc_(rig * sizeof(int));
+		matrice_supp[i] = (int *)malloc_(rig * sizeof(int));
+	}
+}
+
+void genera_matrice(int p){
 	int i,j;
 	int num=0;
 	int dim= rig*col;
 	int rapp=p;
 	for(i=0; i < rig; i++){
 		for(j=0; j < col; j++ ){
-			*mat[i][j]=0;
+			matrice[i][j]=0;
 		}
-	}
-	int arrig[rig];
-	int arcol[col];
-	int swap=0;
-	int ranrig=0;
-	int rancol=0;
+	}/*
+	int *arrig=malloc_(sizeof(int));
+	int *arcol=malloc_(sizeof(int));
+	int swap;
+	int ranrig;
+	int rancol;
 	for(i=0;i<rig ; i++){
 		arrig[i]=i;
 	}
 	for(i=0;i<rig ; i++){
 		arcol[i]=i;
 	}
+	i=0;
 	while(p > 0){
 		srand(time(NULL));
 		swap=rig-i;
-		ranrig= i+ (rand() %(swap));
+		ranrig= i+ rand() %(swap-i);
 		swap=col-i;
-		rancol= i+ (rand() %(swap));
-		*mat[ranrig][rancol] = 1;
+		rancol= i+rand() %(swap);
+		matrice[ranrig][rancol] = 1;
 		swap=arrig[ranrig];
 		arrig[ranrig]=arrig[i];
 		arrig[i]=swap;
@@ -462,7 +435,10 @@ void genera_matrice(int p, int ***mat){
 		i++;
 		p--;
 	}
-	/*
+	free(arrig);
+	free(arcol);
+	*/
+
 	while(p>0){ // rinizio a scorrere la matrice finche' non ho raggiunto 0 numeri da inserire
 		srand(time(NULL)); // cambio seme ogni volta che rinizio la matrice
 		for(i=0;i<rig && p>0;i++){
@@ -474,7 +450,7 @@ void genera_matrice(int p, int ***mat){
 				}
 			}
 		}
-	}*/
+	}
 }
 
 void free_matrice(){
@@ -560,7 +536,7 @@ void scrittura_file(FILE ** fp , char *pathname_out ,int ** mat){
 
 int scelta_perc(char * s, int * perc_int){
 	double check;
-	if(( is_number_double(s,&check) !=1) || ( check<= 0 || check >=1)){
+	if(( is_number_double(s,&check) !=1) || ( check< 0 || check >=1)){
 			printf("Inserimento non corretto numero non compreso in [0,1) o potresti aver inserito un carattere, riprovare\n");
 			return 0;
 	}
@@ -580,7 +556,7 @@ int scelta_rig(char * s){
 		return 0;
 	}
 	else{
-		rig=(int)check;
+		rig=check;
 		col=rig;
 		printf("Verra' generata una matrice %d*%d\n",rig,col);
 		return 1;
@@ -594,7 +570,7 @@ int scelta_state(char * s){
 		return 0;
 	}
 	else{
-		state=(int)check;
+		state=check;
 		printf("Verranno eseguite %d generazioni\n",state);
 		return 1;
 	}
@@ -616,15 +592,6 @@ int scelta_binaria(char * s){
 	}
 	printf("Numero non riconosciuto tra le opzioni oppure potresti aver inserito un carattere, riprovare\n");
 	return 0;
-}
-
-int is_int(double a){
-	int b= (int) a;
-	a=a-b;
-	if(a==0)
-		return 1;
-	else
-		return 0;
 }
 
 void print_riga_griglia(){
