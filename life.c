@@ -1,9 +1,13 @@
+////////////////////////////////////// define /////////////////////////////////////
+
 // grandezza per allocazione stringhe
 #define PATHLEN 256 
 // grandezza massima stringa input
-#define INPUTLEN 101
+#define INPUTLEN 65
 // numero di secondi da aspettare tra una visualizzazione e l' altra
 #define SECOND 1
+
+///////////////////////////////////// include /////////////////////////////////////
 
 #include<sys/stat.h>
 #include<stdio.h>
@@ -13,8 +17,7 @@
 #include<sys/types.h>
 #include<unistd.h>
 
-
-/////////////////////////////////////////// variabili globali /////////////////////////////////////
+//////////////////////////////// variabili globali /////////////////////////////////////
 
 // variabili globali di riga e colonna
 int rig=0;
@@ -30,18 +33,13 @@ int ** matrice_supp=NULL;
 //puntatore a matrice che mi serve per fare la free della matrice di supporto
 int ** matrice_aux=NULL;
 
-///////////////////////////////////////// prototipi funzioni/////////////////////////////////////
-
-//verifica se il numero inserito e' intero
-//return 1 se e' intero
-//return 0 altrimenti
-int is_int(double a);
+//////////////////////////////// prototipi funzioni/////////////////////////////////////
 
 //print di riga della griglia
 void print_riga_griglia();
 
 // stampa la matrice della prossima generazione
-void print_stage(int w, int ** mat_supp);
+void print_state(int w, int ** mat_supp);
 
 //stampa la matrice originaria generata
 void print_prima_matrice(int ** mat);
@@ -92,19 +90,35 @@ int scelta_perc(char * s, int * perc_int);
 // rilascia la memoria dinamica allocata dalle matrici
 void free_matrice();
 
+// genera una matrice con un numero p di elementi ad 1 
 void genera_matrice(int p);
 
+// alloca spazio dinamico per 2 matrice 
 void alloca_matrice();
 
+// malloc riadattata per stampare in stderr in caso di fallimento
 void * malloc_(size_t size);
 
+// seguendo le regole del gioco evolve la matrice e stampa lo stato dopo 1 secondo
 void evoluzione();
 
-///////////////////////////////////////////main()//////////////////////////////////////////////////////
+// riempe la matrice nel caso di EOF in lettura;
+void riempimeto_matrice_EOF();
+
+//legge la matrice da file e la riempe;
+int lettura_matrice_file(FILE ** fp,int *ok);
+
+//la prima riga del file pasato in input, e dovrebbe essere il numero che identifica la dim riga
+int lettura_riga_file(FILE ** fp,char * pathname_in);
+
+
+///////////////////////////////////// main() //////////////////////////////////////////////////////
+
 int main(int argc, char ** argv){
+
 	if(argc>1){
 		fprintf(stderr ,"Troppi argomenti in ingresso\n");
-		return (int)EXIT_FAILURE;
+		return EXIT_FAILURE;
 	}
 	//variabili per le scelte binarie
 	int switch_=0;
@@ -128,13 +142,15 @@ int main(int argc, char ** argv){
 	int perc_int=0;
 	// stringa contenete file in ingresso
 	char pathname_in[PATHLEN];
+
 	// stringa contenente file in uscita
 	char pathname_out[PATHLEN];
+
 	// stringa per input
 	char s[INPUTLEN];
 	
+//////////////////////////////////////// raccolta input ///////////////////////////////////////////////
 
-////////////////////////////////////////avvio game of life///////////////////////////////////////////////
 	printf("\nMENU' GAME OF LIFE\n\n");
 	while(!opt){
 		printf("Scegliere tra le seguenti opzioni:\n");
@@ -198,95 +214,41 @@ int main(int argc, char ** argv){
 			}
 		}
 	}
-	// caso in cui la generazione viene presa da file
+
+/////////////////////////////// scelta [1]: riempimento matrice da file //////////////////////////	
+
 	if(switch_ == 1){
-		if ((fp=fopen(pathname_in,"r"))==NULL){
-			fprintf(stderr, "Errore fopen %s\n",pathname_in);
-			return EXIT_FAILURE;
-		}
-		int a;
-		if((err=fscanf(fp,"%s", s))==1){ // voglio leggere un carattere che sia intero che sara' il numero di riga
-			if( is_number_int(s,&a) && a>0){
-				rig=a;
-				col=rig;
-			}
-			else{
-				printf("Il contenuto del file non corrisponde con le specifiche\n");
-				printf("L'esecuzione termina\n");
-				return EXIT_FAILURE;
-			}
-		}
-		if(err==EOF){
-			printf("Il file passato risulta vuoto, l' esecuzione termina\n");
-			return EXIT_FAILURE;
-		}
-		if(err==0){
-			printf("Il contenuto del file non corrisponde con le specifiche, leggere il Manuale\n");
-			printf("L'esecuzione termina\n");
+		if(lettura_riga_file(&fp , pathname_in)==EXIT_FAILURE){
 			return EXIT_FAILURE;
 		}
 		// alloco le matrici
 		alloca_matrice();
-		//riempio la matrice con -1
-		for(i=0; i < rig; i++){
-				for(j=0; j < col; j++ ){
-					matrice[i][j]=-1;
-				}
-			}
-		
 		int ok=1;
 		//scrivo nel file leggendo un intero alla volta
-		for(i=0; i < rig && ok; i++){
-			for(j=0; j < col && ok; j++){
-				if((err=fscanf(fp,"%d", &buff)) == 1){
-					if(buff==0 || buff==1){
-						matrice[i][j]=buff;
-					}
-					else{
-						printf("Il contenuto del file non corrisponde con le specifiche, leggere il Manuale\n");
-						printf("L'esecuzione termina\n");
-						free_matrice();
-						return EXIT_FAILURE;
-					}
-				}
-				if(err==EOF && !(j==col) && !(i==rig)){ // il file e' terminato prima di leggere l'intera matrice
-					ok=0;
-				}
-				if(err==0){ // ho letto un carattere, che non voglio leggere, file in ingrsso compromesso
-					printf("Il contenuto del file non corrisponde con le specifiche, leggere il Manuale\n");
-					printf("L'esecuzione termina\n");
-					free_matrice();
-					return EXIT_FAILURE;
-				}
-			}
-		}
-		fclose(fp);
-		if(ok==0){
-			printf("La matrice contenuta nel file non e' completa\n");
-			printf("La matrice verra' completata randomicamente\n");
-			for(i=0;i<rig;i++){
-				srand(time(NULL));
-				for(j=0;j<col;j++){
-					if(matrice[i][j]==-1){
-						matrice[i][j]=( rand() %2);
-					}
-				}
-			}
-		}
+		if(lettura_matrice_file(&fp,&ok) == EXIT_FAILURE)
+			return EXIT_FAILURE;
+
+		if(ok==0)
+			riempimeto_matrice_EOF();
 	}
 
-	// caso in cui la matrice viene generata
+/////////////////////////////// scelta[2] :generazione matrice /////////////////////////////////
+	
 	if(switch_ == 2){
 		// alloco memoria dinamica per matrice e matrice di supporto;
 		alloca_matrice();
 		// genero la matrice 
 		genera_matrice(perc_int);
 	}
+
+//////////////////////////////// evoluzione della matrice di partenza //////////////////////////
+
 	// stampo la matrice originaria
 	print_prima_matrice(matrice);
 	// inizio a creare le generazioni future
 	evoluzione();
 
+///////////////////////////////////// raccolta input //////////////////////////////////////////
 
 	opt=0;
 	opt1=0;
@@ -339,13 +301,98 @@ int main(int argc, char ** argv){
 			printf("Lo stato della matrice andra' perso\n");
 		}
 	}
+
+/////////////////////////////////////// fine gioco //////////////////////////////////////////
+
 	printf("\nPer giocare ancora lancia %s\n\n", argv[0]);
 	// dealloco la memoria dinamica allocata
 	free_matrice();
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 ////////////////////////////////////// funzioni //////////////////////////////////////////////////////////
+
+int lettura_riga_file(FILE ** fp,char * pathname_in){
+	if ((*fp=fopen(pathname_in,"r"))==NULL){
+		fprintf(stderr, "Errore fopen %s\n",pathname_in);
+		return EXIT_FAILURE;
+	}
+	int a;
+	int err;
+	if((err=fscanf(*fp,"%d", &a))==1){ // voglio leggere un carattere che sia intero che sara' il numero di riga
+		if(a>0){
+			rig=a;
+			col=rig;
+		}
+		else{
+			printf("Il contenuto del file non corrisponde con le specifiche\n");
+			printf("L'esecuzione termina\n");
+			return EXIT_FAILURE;
+		}
+	}
+	if(err==EOF){
+		printf("Il file passato risulta vuoto, l' esecuzione termina\n");
+		return EXIT_FAILURE;
+	}
+	if(err==0){
+		printf("Il contenuto del file non corrisponde con le specifiche, leggere il Manuale\n");
+		printf("L'esecuzione termina\n");
+		return EXIT_FAILURE;
+	}
+	return EXIT_SUCCESS;
+}
+int lettura_matrice_file(FILE ** fp,int *ok){
+	*ok=1;
+	int err;
+	int buff;
+	int i,j;
+	// rimepio la matrice di -1
+	for(i=0; i < rig; i++){
+		for(j=0; j < col; j++ ){
+			matrice[i][j]=-1;
+		}
+	}
+	//scrivo nel file leggendo un intero alla volta
+	for( i=0; i < rig && *ok; i++){
+		for( j=0; j < col && *ok; j++){
+			if((err=fscanf(*fp,"%d", &buff)) == 1){
+				if(buff==0 || buff==1){
+					matrice[i][j]=buff;
+				}
+				else{
+					printf("Il contenuto del file non corrisponde con le specifiche, leggere il Manuale\n");
+					printf("L'esecuzione termina\n");
+					free_matrice();
+					return EXIT_FAILURE;
+				}
+			}
+			if(err==EOF && !(j==col) && !(i==rig)){ // il file e' terminato prima di leggere l'intera matrice
+				*ok=0;
+			}
+			if(err==0){ // ho letto un carattere, che non voglio leggere, file in ingrsso non segue le specifiche
+				printf("Il contenuto del file non corrisponde con le specifiche, leggere il Manuale\n");
+				printf("L'esecuzione termina\n");
+				free_matrice();
+				return EXIT_FAILURE;
+			}
+		}
+	}
+	fclose(*fp);
+	return EXIT_SUCCESS;
+}
+
+void riempimeto_matrice_EOF(){
+	printf("La matrice contenuta nel file non e' completa\n");
+	printf("La matrice verra' completata randomicamente\n");
+	for(int i=0;i<rig;i++){
+		srand(time(NULL)+i);
+		for(int j=0;j<col;j++){
+			if(matrice[i][j]==-1){
+				matrice[i][j]=( rand() %2);
+			}
+		}
+	}
+}
 
 void evoluzione(){
 	/*Qualsiasi cella viva con meno di due celle vive adiacenti muore, come per effetto d’isolamento;
@@ -372,8 +419,10 @@ void evoluzione(){
 		matrice_aux=matrice;
 		matrice=matrice_supp; // in queste 3 righe scambio i puntatori delle matrici
 		matrice_supp=matrice_aux;
-		sleep(SECOND);
-		print_stage(w+1,matrice);
+		sleep(SECOND); // aspetto esattamente 1s prima di stampare il prossimo stato
+					   // in realta' non sara' easttamente un secondo visto che ci sono anche le o(n*n) computazioni prima della prossima stampa
+					   // ma lanciando il comando time ./life e facendo fare solo uno stato ho visto che questo tempo e' circa 1s
+		print_state(w+1,matrice);
 	}
 	printf("\nGAME OVER\n\n");
 	return;
@@ -407,8 +456,8 @@ void genera_matrice(int p){
 			matrice[i][j]=0;
 		}
 	}/*
-	int *arrig=malloc_(sizeof(int));
-	int *arcol=malloc_(sizeof(int));
+	int *arrig=malloc_(sizeof(int)*rig);
+	int *arcol=malloc_(sizeof(int)*col);
 	int swap;
 	int ranrig;
 	int rancol;
@@ -419,12 +468,12 @@ void genera_matrice(int p){
 		arcol[i]=i;
 	}
 	i=0;
-	while(p > 0){
-		srand(time(NULL));
+	srand(time(NULL));
+	while(p > 0 ){
 		swap=rig-i;
-		ranrig= i+ rand() %(swap-i);
+		ranrig= i+ rand() %swap;
 		swap=col-i;
-		rancol= i+rand() %(swap);
+		rancol= i+ rand() %swap;
 		matrice[ranrig][rancol] = 1;
 		swap=arrig[ranrig];
 		arrig[ranrig]=arrig[i];
@@ -432,17 +481,18 @@ void genera_matrice(int p){
 		swap=arcol[rancol];
 		arcol[rancol]=arcol[i];
 		arcol[i]=swap;
-		i++;
 		p--;
+		i++;
 	}
 	free(arrig);
 	free(arcol);
-	*/
+*/	
 
 	while(p>0){ // rinizio a scorrere la matrice finche' non ho raggiunto 0 numeri da inserire
-		srand(time(NULL)); // cambio seme ogni volta che rinizio la matrice
-		for(i=0;i<rig && p>0;i++){
-			for(j=0;j<col && p>0;j++){
+	 // cambio seme ogni volta che rinizio la matrice
+		for(i=0 ;i<rig && p>0;i++){
+			srand(time(NULL)+i);
+			for(j=0 ;j<col && p>0;j++){
 				num= rand() % dim;  
 				if(matrice[i][j]==0 && num < rapp ){ // controllo che la cella sia 0 ed il numero casuale sia minore di rapp
 					matrice[i][j]=1;  // inserisco 1 nella cella
@@ -485,15 +535,10 @@ int is_number_double(const char* s, double* tmp){
 int scelta_str(char * path){
 	size_t pathname_len=strnlen(path,PATHLEN);
 	if(pathname_len<PATHLEN){
-		printf("Inserimento corretto del file\n");
 		printf("Hai inserito il nome : %s\n", path );
 		return 1;
 	}
 	if(pathname_len==PATHLEN && path[PATHLEN]!='\0'){
-		printf("Nome file troppo lungo, riprovare l' inserimento\n");
-		return 0;
-	}
-	if(pathname_len>PATHLEN){
 		printf("Nome file troppo lungo, riprovare l' inserimento\n");
 		return 0;
 	}
@@ -551,7 +596,7 @@ int scelta_perc(char * s, int * perc_int){
 
 int scelta_rig(char * s){
 	int check;
-	if(( is_number_int(s,&check))!=1 && check<= 0){
+	if(( is_number_int(s,&check)) !=1 && check<= 0){
 		printf("La Granzezza inserita non e' strettamente maggiore di 0 o potresti aver inserito un carattere, riprovare\n");
 		return 0;
 	}
@@ -601,7 +646,7 @@ void print_riga_griglia(){
 	printf("\n");
 }
 
-void print_stage(int w,int ** mat){
+void print_state(int w,int ** mat){
 	int i ,j;
 	printf("\nGenerazione numero %d\n",w);
     print_riga_griglia();
