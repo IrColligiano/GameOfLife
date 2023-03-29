@@ -2,7 +2,7 @@
 
 // grandezza per allocazione stringhe
 #define PATHLEN 256 
-// grandezza massima stringa input
+// grandezza massima stringa input per numeri, scelto 65 per poterci scrivere numeri a 64 cifre senza punto, oppure 63 con punto.
 #define INPUTLEN 65
 // numero di secondi da aspettare tra una visualizzazione e l' altra
 #define SECOND 1
@@ -110,6 +110,10 @@ int lettura_matrice_file(FILE ** fp,int *ok);
 
 //la prima riga del file pasato in input, e dovrebbe essere il numero che identifica la dim riga
 int lettura_riga_file(FILE ** fp,char * pathname_in);
+
+int ricava_col(int num);
+
+int ricava_rig(int num);
 
 
 ///////////////////////////////////// main() //////////////////////////////////////////////////////
@@ -297,7 +301,7 @@ int main(int argc, char ** argv){
 		}			
 		if(switch_ == 2){
 			opt=1;
-			printf("Non salvare lo sato della griglia in un file\n");
+			printf("Non salvare lo stato della griglia in un file\n");
 			printf("Lo stato della matrice andra' perso\n");
 		}
 	}
@@ -321,6 +325,7 @@ int lettura_riga_file(FILE ** fp,char * pathname_in){
 	int err;
 	if((err=fscanf(*fp,"%d", &a))==1){ // voglio leggere un carattere che sia intero che sara' il numero di riga
 		if(a>0){
+			
 			rig=a;
 			col=rig;
 		}
@@ -431,7 +436,7 @@ void evoluzione(){
 void* malloc_(size_t size) {
     void* buffer=malloc(size);
     if(buffer==NULL){
-        fprintf(stderr,"Errore allocazione malloc");
+        fprintf(stderr,"Errore allocazione malloc\n");
         exit(EXIT_FAILURE);
     }
     return buffer;
@@ -446,6 +451,16 @@ void alloca_matrice(){
 	}
 }
 
+int ricava_col(int num){
+	int index = num %rig;
+	return index;
+}
+
+int ricava_rig(int num){
+	int index = num / rig;
+	return index;
+}
+
 void genera_matrice(int p){
 	int i,j;
 	int num=0;
@@ -455,52 +470,30 @@ void genera_matrice(int p){
 		for(j=0; j < col; j++ ){
 			matrice[i][j]=0;
 		}
-	}/*
-	int *arrig=malloc_(sizeof(int)*rig);
-	int *arcol=malloc_(sizeof(int)*col);
-	int swap;
-	int ranrig;
-	int rancol;
-	for(i=0;i<rig ; i++){
-		arrig[i]=i;
 	}
-	for(i=0;i<rig ; i++){
-		arcol[i]=i;
+	////////////////////////////////////vero
+	int *arr=malloc_(sizeof(int)*(rig*col));
+	int swap;
+	int ran;
+	for(i=0; i<rig*col ; i++){
+		arr[i]=i;
 	}
 	i=0;
+	int colonna;
+	int riga;
 	srand(time(NULL));
 	while(p > 0 ){
-		swap=rig-i;
-		ranrig= i+ rand() %swap;
-		swap=col-i;
-		rancol= i+ rand() %swap;
-		matrice[ranrig][rancol] = 1;
-		swap=arrig[ranrig];
-		arrig[ranrig]=arrig[i];
-		arrig[i]=swap;
-		swap=arcol[rancol];
-		arcol[rancol]=arcol[i];
-		arcol[i]=swap;
+		ran= i+ rand() %(rig*col - i);
+		colonna=ricava_col(ran);
+		riga=ricava_rig(ran);
+		swap=arr[i];
+		arr[i]=arr[ran];
+		arr[ran]=swap;
+		matrice[riga][colonna]=1;
 		p--;
 		i++;
 	}
-	free(arrig);
-	free(arcol);
-*/	
-
-	while(p>0){ // rinizio a scorrere la matrice finche' non ho raggiunto 0 numeri da inserire
-	 // cambio seme ogni volta che rinizio la matrice
-		for(i=0 ;i<rig && p>0;i++){
-			srand(time(NULL)+i);
-			for(j=0 ;j<col && p>0;j++){
-				num= rand() % dim;  
-				if(matrice[i][j]==0 && num < rapp ){ // controllo che la cella sia 0 ed il numero casuale sia minore di rapp
-					matrice[i][j]=1;  // inserisco 1 nella cella
-					p--; // diminuisco il numero di celle mancanti da inserire
-				}
-			}
-		}
-	}
+	free(arr);
 }
 
 void free_matrice(){
@@ -572,12 +565,14 @@ void scrittura_file(FILE ** fp , char *pathname_out ,int ** mat){
 		if(fprintf(*fp,"%s","\n")==EOF)	{
 			fprintf(stderr, "Errore scrittura file %s\n",pathname_out);
 			free_matrice();
-			exit( EXIT_FAILURE);
+			exit( EXIT_FAILURE );
 		}
 	}
 	fclose(*fp);
 	return;
 }
+
+
 
 int scelta_perc(char * s, int * perc_int){
 	double check;
@@ -623,6 +618,7 @@ int scelta_state(char * s){
 
 int scelta_binaria(char * s){
 	int check;
+
 	if( is_number_int(s,&check)!=1 ){
 		printf("Numero non riconosciuto tra le opzioni oppure potresti aver inserito un carattere, riprovare\n");
 		return 0;
@@ -635,7 +631,7 @@ int scelta_binaria(char * s){
 		printf("Hai scelto l' opzione [2]: ");
 		return 2;
 	}
-	printf("Numero non riconosciuto tra le opzioni oppure potresti aver inserito un carattere, riprovare\n");
+	printf("Numero non riconosciuto tra le opzioni, riprovare\n");
 	return 0;
 }
 
