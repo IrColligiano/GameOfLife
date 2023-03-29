@@ -111,10 +111,6 @@ int lettura_matrice_file(FILE ** fp,int *ok);
 //la prima riga del file pasato in input, e dovrebbe essere il numero che identifica la dim riga
 int lettura_riga_file(FILE ** fp,char * pathname_in);
 
-int ricava_col(int num);
-
-int ricava_rig(int num);
-
 
 ///////////////////////////////////// main() //////////////////////////////////////////////////////
 
@@ -451,47 +447,31 @@ void alloca_matrice(){
 	}
 }
 
-int ricava_col(int num){
-	int index = num %rig;
-	return index;
-}
-
-int ricava_rig(int num){
-	int index = num / rig;
-	return index;
-}
-
 void genera_matrice(int p){
 	int i,j;
-	int num=0;
-	int dim= rig*col;
-	int rapp=p;
+	int dim= rig*rig;
 	for(i=0; i < rig; i++){
 		for(j=0; j < col; j++ ){
 			matrice[i][j]=0;
 		}
 	}
-	////////////////////////////////////vero
-	int *arr=malloc_(sizeof(int)*(rig*col));
-	int swap;
-	int ran;
-	for(i=0; i<rig*col ; i++){
+	int *arr=malloc_(sizeof(int)*(dim));
+	for(i=0; i<dim ; i++){
 		arr[i]=i;
 	}
-	i=0;
-	int colonna;
-	int riga;
+	/////////////////////////////////soluzione 3
+	for (int i = 0; i < dim; i++) {     // fill array
+    		arr[i] = i;
+	}
 	srand(time(NULL));
-	while(p > 0 ){
-		ran= i+ rand() %(rig*col - i);
-		colonna=ricava_col(ran);
-		riga=ricava_rig(ran);
-		swap=arr[i];
-		arr[i]=arr[ran];
-		arr[ran]=swap;
-		matrice[riga][colonna]=1;
-		p--;
-		i++;
+	for (int i = 0; i < dim; i++) {    // shuffle array
+    		int temp = arr[i];
+    		int randomIndex = rand() % dim;
+    		arr[i]= arr[randomIndex];
+    		arr[randomIndex] = temp;
+	}
+	for (int i = 0; i < p; i++) {    // print array
+    		matrice[(int)arr[i]%rig][(int)arr[i]/rig]=1;
 	}
 	free(arr);
 }
